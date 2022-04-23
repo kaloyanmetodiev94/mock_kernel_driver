@@ -11,19 +11,18 @@
 #include <stdlib.h>
 
 #define DEVICE "/dev/chardev_enduro"
-#define PLUS_VALUE _IOR('a',0,int32_t*)
-#define MINUS_VALUE _IOR('a',1,int32_t*)
-#define MULTIPLY_VALUE _IOR('a',2,int32_t*)
-#define DIVIDE_VALUE _IOR('a',3,int32_t*)
 
 int debug = 1, fd = 0;
 int ppos = 0;
 //char *socket_path = "./socket"; //real socket presented as file
 char *socket_path = "\0hidden_socket"; // \0 removes the socket from the fs (Linux Abstract Socket Namespace) and client can be anywhere	
 struct sockaddr_un addr;
-char buf[100]; //buffer used for client-server comms
-char incoming_buffer_length=9;
-int fd_socket,cl,rc,rcw;
+int incoming_buffer_length=9;
+int device_buffer_length=8;
+char buf[9]; //buffer used for client-server comms
+int fd_socket,cl,rc,rcw,case_value;
+char return_value[24]="Result is "; //"Result is "+ largest integer is 10 characters + !\n
+ssize_t device_write_ret;
 
 char *initial_screen="Client n:\n\
 (1) Add 2 numbers\n\
@@ -77,41 +76,35 @@ void print_custom_buffer(char* buffer, int length){
 	printf("\n");
 }
 
-int write_device()
+int write_device(int fd, char buf[])
 {
-        int write_length = 8;
-	int val1=10;
-	int val2=-3;
-	char data[8]="";
-        ssize_t ret;
- 
-	memcpy(data,&val1, sizeof(val1));
-	memcpy(data+4,&val2, sizeof(val2));
-	printf("DATA_TO_BE_WRITTEN: ");
-	print_custom_buffer(data,8);
-        ret = write(fd, data, write_length, &ppos);
-        if (ret == -1)
-                printf("writting failed\n");
-        else
-                printf("writting success\n");
+	device_write_ret = write(fd, buf+1, device_buffer_length, &ppos);
+	if(debug){
+		printf("DATA_TO_BE_WRITTEN: ");
+		print_custom_buffer(buf+1,8);   
+		if (device_write_ret == -1)
+		        printf("writting failed\n");
+		else
+		        printf("writting success\n");
+	}
         return 0;
 }
 
-int read_device()
+int read_device() //Used for debugging. Not used in final version
 {
-        int read_length = 8;
+	char *data = (char *)malloc(device_buffer_length * sizeof(char));
         ssize_t ret;
-        char *data = (char *)malloc(1024 * sizeof(char));
 
         memset(data, 0, sizeof(data));
-        ret = read(fd, data, read_length, &ppos);
-	printf("DEVICE_BUFFER: ");
-	print_custom_buffer(data,8);
-        if (ret == -1)
-                printf("reading failed\n");
-        else
-                printf("reading success\n");
-
+        ret = read(fd, data, device_buffer_length, &ppos);
+	if (debug){
+		printf("DEVICE_BUFFER: ");
+		print_custom_buffer(data,8);
+		if (ret == -1)
+		        printf("reading failed\n");
+		else
+		        printf("reading success\n");
+	}
         free(data);
         return 0;
 }
@@ -121,43 +114,8 @@ int ioctl_device(int fd, int case_value)
 {
 	int32_t value;
         ioctl(fd, _IOR('a',case_value-1,int32_t*), &value);
-        printf("Result: %d\n", value);
-	return 0;
+	return value;
 }
-
-void throw_old_stuff(){
-		int value=0;
-                printf("please enter:\n\
-                    \t 1 to Add\n\
-                    \t 2 to Subtract\n\
-                    \t 3 to Multiply\n\
-                    \t 4 to Divide\n\
-                    \t 5 to write buffer\n\
-                    \t 6 to read buffer\n\
-                    \t 0 to exit\n");
-                scanf("%d", &value);
-		fd = open(DEVICE, O_RDWR);
-                switch (value) {
-                case 5 : printf("Writing buffer...\n");
-                        write_device();
-                        break;
-                case 6 : printf("read option selected\n");
-                        read_device();
-                        break;
-		case 1: case 2: case 3: case 4:
-                        ioctl_device(fd,value);
-			break;
-		case 0 :
-			printf("exiting loop\n");
-			break;
-                default : 
-			printf("unknown  option selected, please enter right one\n");
-                        break;
-                }
-		close(fd); /*closing the device*/
-}
-
-
 
 int main(int argc, char *argv[])
 {
@@ -185,18 +143,26 @@ int main(int argc, char *argv[])
 			printf("Client connected\n");
 		}
 		while ( (rc=read(cl,buf,sizeof(buf))) > 0) { //in this loop while waiting for commands from the client
-			if(debug) print_custom_buffer(buf,9);
-			switch ((int) buf[0]){
+			if(debug) print_custom_buffer(buf,incoming_buffer_length);
+			case_value=(int) buf[0];
+			switch (case_value){
 				case 0:
 					rcw=write(cl,initial_screen,strlen(initial_screen));
 					break;
+				case 1: case 2: case 3: case 4:
+					fd = open(DEVICE, O_RDWR); //open device for read/write
+					write_device(fd,buf); //write the buffer
+					sprintf(return_value+10,"%d!\n",ioctl_device(fd,case_value)); //execute the command
+					close(fd); //close device
+					rcw=write(cl,return_value,strlen(return_value));
+					break;
 				case 5:
 					rcw=write(cl,disconnect,strlen(disconnect));
+					rc=0; // mimic a Ctrl+C event when 0 bytes are incoming
 					goto disconnect_line;
 				default:
 					rcw=write(cl,wrong_command,strlen(wrong_command));
 					break;	
-		
 			}
 			
 		}

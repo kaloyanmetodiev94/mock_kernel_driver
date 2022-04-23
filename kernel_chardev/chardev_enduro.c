@@ -11,8 +11,8 @@
 #include <linux/limits.h>
 
 #define PLUS_VALUE _IOR('a',0,int32_t*)
-#define MINUS_VALUE _IOR('a',1,int32_t*)
-#define MULTIPLY_VALUE _IOR('a',2,int32_t*)
+#define MINUS_VALUE _IOR('a',2,int32_t*)
+#define MULTIPLY_VALUE _IOR('a',1,int32_t*)
 #define DIVIDE_VALUE _IOR('a',3,int32_t*)
 
 
@@ -23,8 +23,8 @@ static void custom_exit(void);
 char *memory_buffer;
 int16_t memory_buffer_len = 8; // 2x4bytes for the two signed integers
 signed int result_val;
-signed int val1;
-signed int val2;
+signed int *val1;
+signed int *val2;
 
 
 static int custom_open(struct inode *i, struct file *f)
@@ -57,28 +57,31 @@ static ssize_t custom_write(struct file *f, const char __user *buf, size_t len,
 }
 
 static ssize_t custom_ioctl(struct file *filep, unsigned int cmd, unsigned long arg){
-       	memcpy(&val1,memory_buffer, sizeof(val1));
-	memcpy(&val2,memory_buffer+4, sizeof(val2));
-	printk(KERN_INFO "val1: %X val2: %X\n",val1,val2);
+       	//memcpy(&val1,memory_buffer, sizeof(val1));
+	//memcpy(&val2,memory_buffer+4, sizeof(val2));
+	val1=(uint32_t *) &memory_buffer[0];
+	val2=(uint32_t *) &memory_buffer[4];
+	printk(KERN_INFO "val1: %X val2: %X\n",*val1,*val2);
         switch(cmd) {
                 case PLUS_VALUE:
-			result_val=val1+val2;
-			printk(KERN_INFO "Calculating %d + %d\n",val1,val2);
+			result_val=*val1+*val2;
+			printk(KERN_INFO "Calculating %d + %d\n",*val1,*val2);
                         break;
                 case MINUS_VALUE:
-			result_val=val1-val2;
-			printk(KERN_INFO "Calculating %d - %d\n",val1,val2);
+			result_val=*val1-*val2;
+			printk(KERN_INFO "Calculating %d - %d\n",*val1,*val2);
                         break;
                 case MULTIPLY_VALUE:
-			result_val=val1*val2;
-			printk(KERN_INFO "Calculating %d * %d\n",val1,val2);
+			result_val=*val1 * *val2;
+			printk(KERN_INFO "Calculating %d * %d\n",*val1,*val2);
                         break;
                 case DIVIDE_VALUE:
-			if (val2==0){
+			if (*val2==0){
 				printk(KERN_WARNING "Division by 0 cought");
+				result_val=0;
 			}else{
-				result_val=val1/val2;
-				printk(KERN_INFO "Calculating %d / %d\n",val1,val2);
+				result_val=*val1 / *val2;
+				printk(KERN_INFO "Calculating %d / %d\n",*val1,*val2);
 			}
                         break;
                 default:
