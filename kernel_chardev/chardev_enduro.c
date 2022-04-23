@@ -61,7 +61,6 @@ static ssize_t custom_ioctl(struct file *filep, unsigned int cmd, unsigned long 
 	//memcpy(&val2,memory_buffer+4, sizeof(val2));
 	val1=(uint32_t *) &memory_buffer[0];
 	val2=(uint32_t *) &memory_buffer[4];
-	printk(KERN_INFO "val1: %X val2: %X\n",*val1,*val2);
         switch(cmd) {
                 case PLUS_VALUE:
 			result_val=*val1+*val2;
@@ -79,6 +78,7 @@ static ssize_t custom_ioctl(struct file *filep, unsigned int cmd, unsigned long 
 			if (*val2==0){
 				printk(KERN_WARNING "Division by 0 cought");
 				result_val=0;
+				return -ENOTTY;
 			}else{
 				result_val=*val1 / *val2;
 				printk(KERN_INFO "Calculating %d / %d\n",*val1,*val2);

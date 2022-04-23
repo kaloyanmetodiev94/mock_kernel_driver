@@ -12,8 +12,6 @@ char *socket_path = "\0hidden_socket";
 
 char server_buf[9]=""; //initialized with \x00 to trigger announcement [1] byte command [4] bytes integer [4] bytes integer
 int server_buf_len=9; //length of the buffer that the server receives
-char *server_buf_ptr1=&server_buf[1];
-char *server_buf_ptr2=&server_buf[5];
 
 struct sockaddr_un addr;
 char buf[200]; //needs the bytes to accept the initial announcement

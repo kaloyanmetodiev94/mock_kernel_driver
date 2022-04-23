@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #define DEVICE "/dev/chardev_enduro"
 
@@ -19,12 +20,15 @@ char *socket_path = "\0hidden_socket"; // \0 removes the socket from the fs (Lin
 struct sockaddr_un addr;
 int incoming_buffer_length=9;
 int device_buffer_length=8;
-char buf[9]; //buffer used for client-server comms
-int fd_socket,cl,rc,rcw,case_value;
+int fd_socket,cl,rc,rcw;
 char return_value[24]="Result is "; //"Result is "+ largest integer is 10 characters + !\n
 ssize_t device_write_ret;
+uint8_t case_value;
+int32_t ioctl_value;
 
-char *initial_screen="Client n:\n\
+
+// UI COMMANDS definitions
+const char *initial_screen="Client n:\n\
 (1) Add 2 numbers\n\
 (2) Multiply 2 numbers\n\
 (3) Subtract 2 numbers\n\
@@ -32,9 +36,12 @@ char *initial_screen="Client n:\n\
 (5) Exit\n\
 Enter Command:\0";
 
-char *wrong_command="Wrong command. Value must be [0-5] (0 for initial menu)\n: ";
+const char *wrong_command="Wrong command. Value must be [0-5] (0 for initial menu)\n: ";
 
-char *disconnect="Disconnected\n";
+const char *disconnect="Disconnected\n";
+
+const char *action_names[] = {"ADD","MULTIPLY","SUBTRACT","DIVIDE"};
+//end of UI definitions
 
 int setup_socket(int argc, char *argv[]){
 
@@ -76,7 +83,7 @@ void print_custom_buffer(char* buffer, int length){
 	printf("\n");
 }
 
-int write_device(int fd, char buf[])
+int write_device(int fd, char *buf)
 {
 	device_write_ret = write(fd, buf+1, device_buffer_length, &ppos);
 	if(debug){
@@ -112,15 +119,14 @@ int read_device() //Used for debugging. Not used in final version
 
 int ioctl_device(int fd, int case_value)
 {
-	int32_t value;
-        ioctl(fd, _IOR('a',case_value-1,int32_t*), &value);
-	return value;
+
+        return ioctl(fd, _IOR('a',case_value-1,int32_t*), &ioctl_value);
 }
 
 int main(int argc, char *argv[])
 {
         int value = 0;
-
+	char *buf = (char *)malloc(incoming_buffer_length * sizeof(char)); // initialize the read-in buffer for the incoming requests in main scope
 	//opening device
         if (access(DEVICE, W_OK) == -1) {
                 printf("module %s not loaded. Maybe permissions issue?\n", DEVICE);
@@ -142,17 +148,23 @@ int main(int argc, char *argv[])
 		if (cl>=0){
 			printf("Client connected\n");
 		}
-		while ( (rc=read(cl,buf,sizeof(buf))) > 0) { //in this loop while waiting for commands from the client
+		while ( (rc=read(cl,&buf[0],incoming_buffer_length)) > 0) { //in this loop while waiting for commands from the client
 			if(debug) print_custom_buffer(buf,incoming_buffer_length);
-			case_value=(int) buf[0];
+			case_value=(uint8_t) buf[0];
+			printf("case_value: %d\n",case_value);
 			switch (case_value){
 				case 0:
 					rcw=write(cl,initial_screen,strlen(initial_screen));
 					break;
 				case 1: case 2: case 3: case 4:
+					printf("Received request %s(%d,%d)\n",action_names[case_value-1],(int32_t) buf[1],(int32_t) buf[5]);
 					fd = open(DEVICE, O_RDWR); //open device for read/write
 					write_device(fd,buf); //write the buffer
-					sprintf(return_value+10,"%d!\n",ioctl_device(fd,case_value)); //execute the command
+					if(ioctl_device(fd,case_value)==0){
+						sprintf(return_value+10,"%d!\n",ioctl_value); //execute the command in the sprintf. +10 is "Result is "
+					}else{
+						sprintf(return_value+10,"weird!\n");
+					}
 					close(fd); //close device
 					rcw=write(cl,return_value,strlen(return_value));
 					break;
