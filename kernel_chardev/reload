@@ -1,4 +1,0 @@
-#!/bin/sh
-
-sudo rmmod chardev_enduro
-sudo insmod chardev_enduro.ko
