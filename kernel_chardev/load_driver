@@ -1,0 +1,10 @@
+#!/bin/sh
+
+if [ ! -f /dev/chardev_enduro ]; then
+   sudo rmmod chardev_enduro
+   #sudo rm /dev/chardev_enduro #node should be removed automatically, but if it isn't...
+fi
+
+sudo insmod kernel_chardev/chardev_enduro.ko
+#sudo mknod /dev/chardev_enduro c 249 0 #used if node is note made for some reason
+#sudo chmod 777 /dev/chardev_enduro
