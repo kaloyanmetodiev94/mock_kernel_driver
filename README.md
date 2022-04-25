@@ -27,3 +27,10 @@ On terminal 2 connect the client:
 .\client #follow instructions from the server
 ```
 
+To connect through the python client:
+```bash
+python3 ..\client\python_client.py
+```
+*Python client errors out on integer overflow whereas the C client overflows to the negatives. Not sure which is preferred, can to whatever.
+
+

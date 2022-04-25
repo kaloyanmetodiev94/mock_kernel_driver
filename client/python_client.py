@@ -21,8 +21,18 @@ class PythonClient():
 		self.client.close()
 
 	def communicate(self):
-		self.client.send(self.data_buffer)
+		print("Sending request...")
+		if(self.client.send(self.data_buffer)>0):
+			print("Request is OKAY..")
+		print("Receiving response...")
 		print(self.client.recv(self.receive_buffer_size).decode())
+
+	def numbers_prompt(self):
+		numbers = ['','']
+		for i in range(len(numbers)):
+			while not self.check_int(numbers[i]):
+				numbers[i]=input("Enter operand "+str(i+1)+":")
+		return list(map(lambda x: int(x),numbers)) #map the list to integers 
 
 	def run(self):
 		val='0'
@@ -40,14 +50,22 @@ class PythonClient():
 				self.data_buffer[0]=val
 				self.communicate()
 				return True
+			elif 0<val<5:
+				self.data_buffer[0]=val
+				numbers=self.numbers_prompt()
+				self.data_buffer[1:5]=numbers[0].to_bytes(length=4, byteorder='little',signed=True) #everywhere we use little endian
+				self.data_buffer[5:9]=numbers[1].to_bytes(length=4, byteorder='little',signed=True)
+				self.communicate()
+				return True
 			else:
+				print("Please select a valid command. Enter 0 to get menu")
 				return True
 		else:
 			print("Only integer numbers allowed")
 			return True
 
 	def check_int(self,string):
-		if string[0] in ('-', '+'):
+		if (len(string)>0) and (string[0] in ('-', '+')):
 			return string[1:].strip().isdigit()
 		return string.strip().isdigit()
 
