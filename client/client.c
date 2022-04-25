@@ -33,15 +33,15 @@ void setup_socket(int argc, char *argv[]){
   addr.sun_family = AF_UNIX;
   if (*socket_path == '\0') {
     *addr.sun_path = '\0';
-    strncpy(addr.sun_path+1, socket_path+1, sizeof(addr.sun_path)-2);
+    strncpy(addr.sun_path+1, socket_path+1, sizeof(addr.sun_path)-2); // sizeof(addr.sun_path)==108
   } else {
     strncpy(addr.sun_path, socket_path, sizeof(addr.sun_path)-1);
   }
-
   if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
     perror("connect error");
     exit(-1);
   }
+
 }
 
 int input_checker(char *arr, int arr_len){ //last char or arr_len is \n (ASCII:10)
@@ -72,10 +72,14 @@ int charArrayToInt(char *arr, int arr_len) { //trying not to use atoi as my char
 }
 
 
-void communicate_buffer(){
+void communicate_buffer(int write_info){ // write_info = 0 not writing anad write_info = 0 writing when request is sent and received
+    if (write_info) printf("Sending request...\n");
     if(write(fd, server_buf, server_buf_len)!=server_buf_len){
 	perror("writing error\n");
+    }else if (write_info){
+	printf("Request OKAY...\n");
     }
+    if (write_info) printf("Receiving response...\n");
     rcr=read(fd, buf,sizeof(buf));
     printf("%.*s ", rcr, buf);
     fflush(stdout); //this is to make the command entering on the same line
@@ -84,7 +88,7 @@ void communicate_buffer(){
 
 int main(int argc, char *argv[]) {
   setup_socket(argc,argv);
-  communicate_buffer(); //communicate the empty-initialized buffer and use it as acknowledge request.
+  communicate_buffer(0); //communicate the empty-initialized buffer and use it as acknowledge request.
 
   while( (rc=read(STDIN_FILENO, buf, sizeof(buf))) > 0) {
 	send_buffer=0;
@@ -120,7 +124,7 @@ int main(int argc, char *argv[]) {
 		state=0;
 		send_buffer=1;
 	}
-	if (send_buffer) communicate_buffer();
+	if (send_buffer)communicate_buffer(1);
 	if (state==3) return 0; //exit the client as well when getting disconnected
   }
 

@@ -23,7 +23,7 @@ On terminal 1:
 ```
 
 On terminal 2 connect the client:
-```
+```bash
 .\client #follow instructions from the server
 ```
 

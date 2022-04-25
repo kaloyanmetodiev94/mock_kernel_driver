@@ -21,7 +21,6 @@ struct sockaddr_un addr;
 int incoming_buffer_length=9;
 int device_buffer_length=8;
 int fd_socket,cl,rc,rcw;
-char return_value[24]="Result is "; //"Result is "+ largest integer is 10 characters + !\n
 ssize_t device_write_ret;
 uint8_t case_value;
 int32_t ioctl_value;
@@ -39,6 +38,8 @@ Enter Command:\0";
 const char *wrong_command="Wrong command. Value must be [0-5] (0 for initial menu)\n: ";
 
 const char *disconnect="Disconnected\n";
+
+char return_value[24]="Result is "; //"Result is "+ largest integer is 10 characters + !\n
 
 const char *action_names[] = {"ADD","MULTIPLY","SUBTRACT","DIVIDE"};
 //end of UI definitions
@@ -146,12 +147,11 @@ int main(int argc, char *argv[])
                 	continue;
                 }
 		if (cl>=0){
-			printf("Client connected\n");
+			printf("Client connected!\n");
 		}
 		while ( (rc=read(cl,&buf[0],incoming_buffer_length)) > 0) { //in this loop while waiting for commands from the client
 			if(debug) print_custom_buffer(buf,incoming_buffer_length);
 			case_value=(uint8_t) buf[0];
-			printf("case_value: %d\n",case_value);
 			switch (case_value){
 				case 0:
 					rcw=write(cl,initial_screen,strlen(initial_screen));
@@ -167,6 +167,7 @@ int main(int argc, char *argv[])
 					}
 					close(fd); //close device
 					rcw=write(cl,return_value,strlen(return_value));
+					printf("Sending result!\n");
 					break;
 				case 5:
 					rcw=write(cl,disconnect,strlen(disconnect));
@@ -184,7 +185,7 @@ int main(int argc, char *argv[])
 		}
 		disconnect_line:
 		if (rc == 0) {
-			printf("Client disconnected\n");
+			printf("Client disconnected!\n");
 			close(cl);
 		}
 
